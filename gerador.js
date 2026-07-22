@@ -330,12 +330,20 @@ async function generatePDF(data) {
     currentY -= 25;
 
     // SEÇÃO 3: REPOSITÓRIO E BIBLIOGRAFIA
-    if (data.repositorio && data.repositorio.trim() !== "" && data.repositorio !== "Não aplicável") {
-        drawWrappedText("3. REPOSITÓRIO DO PROJETO", fontBold, 12, 'left');
-        currentY -= 5;
-        drawWrappedText(`Link de Acesso: ${data.repositorio}`, font, 12, 'left');
-        currentY -= 25;
+    drawWrappedText("3. REPOSITÓRIO E LINKS EXTERNOS", fontBold, 12, 'left');
+    currentY -= 20; // Espaço entre o título e o conteúdo
+
+    // 2. Verifica se o usuário preencheu o campo
+    if (data.repositorio && data.repositorio.trim() !== "") {
+        // Se tem link, imprime o link
+        drawWrappedText(data.repositorio, font, 11, 'left');
+    } else {
+        // Se não tem link, imprime a mensagem padrão
+        drawWrappedText("Nenhum link ou repositório externo foi vinculado a este projeto.", font, 11, 'left');
     }
+    
+    // 3. Espaçamento padrão antes de iniciar o Capítulo 4
+    currentY -= 30;
 
     if (data.bibliografia && data.bibliografia.trim() !== "") {
         drawWrappedText("4. REFERÊNCIAS BIBLIOGRÁFICAS", fontBold, 12, 'left');
@@ -469,3 +477,70 @@ async function generatePDF(data) {
     link.click();
     document.body.removeChild(link);
 }
+
+// Função principal para configurar os inputs de arquivo
+function configurarRemocaoArquivos(inputId, listId) {
+    const input = document.getElementById(inputId);
+    const list = document.getElementById(listId);
+
+    if (!input || !list) return;
+
+    input.addEventListener('change', function() {
+        atualizarInterfaceLista(input, list);
+    });
+}
+
+// Atualiza o HTML para mostrar os arquivos selecionados
+function atualizarInterfaceLista(input, list) {
+    list.innerHTML = ''; // Limpa a lista antes de remontar
+    
+    // Transforma o FileList em um Array para poder varrer
+    Array.from(input.files).forEach((file, index) => {
+        const li = document.createElement('li');
+        li.className = 'flex justify-between items-center bg-slate-100 px-3 py-2 rounded-lg text-sm text-slate-600 border border-slate-200';
+        
+        // Nome do arquivo (truncate para não quebrar o layout se o nome for gigante)
+        const nomeArquivo = document.createElement('span');
+        nomeArquivo.className = 'truncate pr-4 font-medium';
+        nomeArquivo.textContent = file.name;
+        
+        // Botão de remover [X]
+        const btnRemover = document.createElement('button');
+        btnRemover.type = 'button';
+        btnRemover.className = 'text-red-500 hover:text-red-700 hover:bg-red-50 rounded-full w-6 h-6 flex items-center justify-center font-bold transition-colors focus:outline-none';
+        btnRemover.innerHTML = '✕';
+        btnRemover.title = "Remover arquivo";
+        
+        // Ação de clique para excluir o arquivo
+        btnRemover.onclick = (e) => {
+            e.preventDefault(); 
+            e.stopPropagation(); 
+            removerArquivoDoInput(input, index, list);
+        };
+        
+        li.appendChild(nomeArquivo);
+        li.appendChild(btnRemover);
+        list.appendChild(li);
+    });
+}
+
+// Remove o arquivo específico da memória do navegador e atualiza a interface
+function removerArquivoDoInput(input, indiceParaRemover, list) {
+    // DataTransfer é o truque nativo do JS para reescrever o input.files (que normalmente é bloqueado)
+    const dt = new DataTransfer();
+    
+    Array.from(input.files).forEach((file, index) => {
+        if (index !== indiceParaRemover) {
+            dt.items.add(file); // Adiciona todos de volta, exceto o que foi clicado
+        }
+    });
+    
+    input.files = dt.files; // Sobrescreve os arquivos do input
+    atualizarInterfaceLista(input, list); // Atualiza o HTML
+}
+
+// Ativa as funções assim que a página terminar de carregar
+document.addEventListener('DOMContentLoaded', () => {
+    configurarRemocaoArquivos('input-imagens', 'lista-imagens');
+    configurarRemocaoArquivos('input-pdf', 'lista-pdfs');
+});
